@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CoinEasy — Prototype</title>
+
+<!-- Optional: remove or configure EmailJS if you want real emails -->
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+
+<style>
+  :root{
+    --bg1: #f5fbfb;
+    --card: #ffffff;
+    --text: #0b2b2b;
+    --muted: #52626a;
+    --brand: #0ea5a1;       /* teal brand */
+    --accent: #ff8a4c;      /* warm accent */
+    --sell-blue: #cfe9ff;   /* light clear blue for sell */
+    --line: #e6eef0;
+    --danger:#ef4444;
+    --success:#10b981;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  body{background:linear-gradient(180deg,var(--bg1),#ffffff);color:var(--text);-webkit-font-smoothing:antialiased;}
+  header{display:flex;align-items:center;gap:12px;padding:14px 16px;background:transparent;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40;}
+  .logo-wrap{display:flex;align-items:center;gap:10px}
+  .logo-mark{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#2dd4bf,#0891b2);display:grid;place-items:center;color:white;font-weight:800;font-size:20px;position:relative;box-shadow:0 6px 18px rgba(13,30,45,0.06)}
+  .logo-mark::after{content:"";position:absolute;right:-8px;bottom:-8px;width:18px;height:18px;border-radius:50%;background:var(--accent);transform:rotate(30deg)}
+  .logo-text{font-weight:800;font-size:18px}
+  .logo-text .coin{color:#059669} /* greenish coin */
+  .logo-text .easy{color:var(--accent);margin-left:6px}
+
+  main{max-width:980px;margin:18px auto;padding:0 16px 88px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 6px 22px rgba(7,15,23,0.04)}
+  h1,h2,h3{margin:0 0 8px 0}
+  p{margin:0 0 10px 0;color:var(--muted)}
+  button{font-weight:700}
+
+  /* pages */
+  .page{display:none}
+  .page.active{display:block}
+
+  /* forms */
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea{
+    padding:10px;border-radius:10px;border:1px solid var(--line);background:transparent;font-size:15px;color:var(--text);
+  }
+  input[readonly]{background:#f3f7f8}
+  .row{display:flex;gap:10px;align-items:center}
+  .row.wrap{flex-wrap:wrap}
+
+  .btn{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+  .btn.primary{background:linear-gradient(90deg,var(--brand),#057a7a);color:white;border:none}
+  .btn.ghost{background:transparent}
+  .btn.danger{background:var(--danger);color:white;border:none}
+  .btn.sell{background:var(--sell-blue);border:1px solid rgba(6,60,120,0.08);color:#044f8c}
+  .small{font-size:13px;padding:8px 10px;border-radius:8px}
+
+  /* table */
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px;border-bottom:1px dashed var(--line);text-align:left;font-size:14px}
+  th{font-size:12px;color:var(--muted);text-transform:uppercase}
+
+  /* bottom nav */
+  .bottom-nav{position:fixed;left:0;right:0;bottom:14px;display:flex;justify-content:space-around;gap:12px;padding:10px 16px;max-width:520px;margin:auto;box-shadow:0 10px 30px rgba(3,19,26,0.08);background:linear-gradient(180deg,#ffffff, #f7fffe);border-radius:14px;border:1px solid var(--line);z-index:50}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--muted);background:transparent;border:none;padding:6px 10px;border-radius:10px}
+  .tab.active{background:rgba(5,150,105,0.08);color:var(--brand)}
+  .tab svg{width:20px;height:20px;opacity:0.95}
+
+  /* responsive */
+  @media (min-width:900px){
+    .bottom-nav{display:flex;max-width:780px}
+  }
+  @media (max-width:520px){
+    .card{padding:12px}
+    input,select{font-size:14px}
+  }
+
+  /* receipt modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(3,10,14,0.5);display:none;align-items:center;justify-content:center;z-index:80}
+  .modal{background:var(--card);padding:18px;border-radius:12px;max-width:420px;width:94%}
+  .muted{color:var(--muted);font-size:14px}
+  .status-pending{color:#b45309;font-weight:700}
+  .status-confirmed{color:var(--success);font-weight:700}
+
+  /* tiny helpers */
+  .flex{display:flex;gap:10px;align-items:center}
+  .spaced{display:flex;justify-content:space-between;align-items:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <div class="logo-mark">฿</div>
+    <div class="logo-text"><span class="coin">Coin</span><span class="easy">Easy</span></div>
+  </div>
+</header>
+
+<main>
+  <!-- LOGIN / SIGNUP PAGE -->
+  <section id="page-auth" class="page active">
+    <div class="card">
+      <h2>Welcome back — or join CoinEasy</h2>
+      <p>Sign up or login with email. Password-confirmation required on sign up.</p>
+
+      <div class="row wrap" style="margin-bottom:12px;">
+        <button id="btnShowLogin" class="btn small">Login</button>
+        <button id="btnShowSignup" class="btn small">Sign up</button>
+      </div>
+
+      <div id="loginBox">
+        <div class="field"><label class="muted">Email</label><input id="login_email" type="email" /></div>
+        <div class="field"><label class="muted">Password</label><input id="login_pass" type="password" /></div>
+        <div class="spaced">
+          <button class="btn primary" id="doLogin">Login</button>
+          <button class="btn ghost" id="demoFill">Quick fill (demo)</button>
+        </div>
+      </div>
+
+      <div id="signupBox" style="display:none;">
+        <div class="field"><label class="muted">Full name</label><input id="signup_name" type="text" /></div>
+        <div class="field"><label class="muted">Email</label><input id="signup_email" type="email" /></div>
+        <div class="field"><label class="muted">Password</label><input id="signup_pass" type="password" /></div>
+        <div class="field"><label class="muted">Confirm Password</label><input id="signup_pass2" type="password" /></div>
+        <div class="spaced">
+          <button class="btn primary" id="doSignup">Create account</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOME -->
+  <section id="page-home" class="page">
+    <div class="card">
+      <h1>CoinEasy</h1>
+      <p>Fast, small OTC-style crypto buy/sell using KPay & your wallet. Simple, clean, and mobile-first.</p>
+
+      <div class="flex" style="margin-top:10px;flex-wrap:wrap;">
+        <button class="btn" onclick="openExt('https://www.binance.com')">Binance</button>
+        <button class="btn" onclick="openExt('https://www.bitget.com')">Bitget</button>
+        <button class="btn" onclick="openExt('https://www.okx.com')">OKX</button>
+        <button class="btn" onclick="openExt('https://crypto.com')">Crypto.com</button>
+        <button class="btn" onclick="openExt('https://www.kraken.com')">Kraken</button>
+        <button class="btn" onclick="openExt('https://www.coinbase.com')">Coinbase</button>
+      </div>
+
+      <div style="margin-top:12px;">
+        <a class="muted" href="https://t.me/Apex_56" target="_blank">Customer support • Telegram</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARKET -->
+  <section id="page-market" class="page">
+    <div class="card spaced">
+      <div>
+        <h2 style="margin-bottom:6px">Market (live)</h2>
+        <p class="muted">Prices updated from CoinGecko · BTC/ETH/USDT → MMK</p>
+      </div>
+      <div class="row">
+        <button class="btn" id="reloadMarket">Reload</button>
+        <div id="lastUpdate" class="muted" style="font-size:13px">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>Coin</th><th>Price (MMK)</th></tr></thead>
+        <tbody id="marketTable"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Buy (from KPay)</h3>
+      <div class="field"><label class="muted">Coin</label>
+        <select id="buy_coin"><option>USDT</option><option>BTC</option><option>ETH</option></select>
+      </div>
+      <div class="field"><label class="muted">Network</label>
+        <select id="buy_network"><option>ERC20</option><option>TRC20</option><option>BEP20</option></select>
+      </div>
+      <div class="field"><label class="muted">Amount (USDT)</label><input id="buy_amount" type="number" min="1" /></div>
+      <div class="spaced">
+        <button class="btn primary" id="buyConfirm">Confirm</button>
+      </div>
+
+      <div id="buyDetails" style="display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:12px">
+        <div class="muted">Your KPay (seller) info will be shown below. These are our KPay credentials you asked to display after confirmation.</div>
+        <div style="margin-top:8px">
+          <input type="text" readonly value="Name: Tun Myint Oo" />
+          <input type="text" readonly value="Phone: 09673889038" style="margin-top:8px" />
+        </div>
+        <div style="margin-top:8px">
+          <div class="field"><label class="muted">Your crypto wallet address (where you will receive coins)</label><input id="buy_wallet" type="text" placeholder="e.g. your USDT address" /></div>
+          <div class="field"><label class="muted">Upload receipt (payment screenshot)</label><input id="buy_receipt" type="file" accept="image/*" /></div>
+          <div class="spaced">
+            <button class="btn primary" id="buySend">Send</button>
+            <button class="btn ghost" id="buyCancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="background:linear-gradient(180deg,#fff,#fbfcff)">
+      <h3 style="margin-bottom:8px">Sell (quick — visually clear)</h3>
+      <div class="field"><label class="muted">Coin</label>
+        <select id="sell_coin" onchange="prefillSellAddress()"><option value="BTC">BTC</option><option value="ETH">ETH</option></select>
+      </div>
+      <div class="field"><label class="muted">Network</label>
+        <select id="sell_network"><option>ERC20</option><option>TRC20</option><option>BEP20</option></select>
+      </div>
+      <div class="spaced" style="margin-top:8px">
+        <button class="btn sell" id="sellConfirm">Confirm (view receive address)</button>
+      </div>
+
+      <div id="sellDetails" style="display:none;margin-top:12px;border-top:1px dashed var(--line);padding-top:12px;background:var(--sell-blue);border-radius:10px;padding:12px">
+        <div class="muted">Receive address (our wallet) — shown after you press Confirm:</div>
+        <div style="margin-top:8px">
+          <input id="receive_addr" type="text" readonly style="background:#eaf6ff" />
+        </div>
+        <div style="margin-top:8px">
+          <div class="field"><label class="muted">Your KPay Name</label><input id="sell_kpay_name" type="text" /></div>
+          <div class="field"><label class="muted">Your KPay Phone</label><input id="sell_kpay_phone" type="text" /></div>
+          <div class="field"><label class="muted">Upload receipt (tx or screenshot)</label><input id="sell_receipt" type="file" accept="image/*" /></div>
+          <div class="spaced">
+            <button class="btn primary" id="sellSend">Send</button>
+            <button class="btn ghost" id="sellCancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ASSETS / PROFILE -->
+  <section id="page-assets" class="page">
+    <div class="card spaced">
+      <div>
+        <h2>Your profile</h2>
+        <p class="muted">Email, name and account ID</p>
+        <div style="margin-top:8px">
+          <div class="muted">Email</div><div id="profile_email"></div>
+          <div class="muted" style="margin-top:6px">Name</div><div id="profile_name"></div>
+          <div class="muted" style="margin-top:6px">Account ID</div><div id="profile_id"></div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <button class="btn ghost" id="editProfile">Edit</button>
+        <button class="btn" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Transactions</h3>
+      <p class="muted">Pending transactions auto-confirm after 30 minutes. Tap a row to view receipt & details.</p>
+      <table>
+        <thead><tr><th>Type</th><th>Coin</th><th>Amount</th><th>Status</th><th>Time</th></tr></thead>
+        <tbody id="txnTable"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- receipt modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div id="modalContent"></div>
+    <div style="margin-top:12px;text-align:right">
+      <button class="btn ghost" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- bottom nav -->
+<div class="bottom-nav" id="bottomNav" style="display:none">
+  <button class="tab" id="tabHome" onclick="navigate('home')">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 4l9 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div style="font-size:12px">Home</div>
+  </button>
+  <button class="tab" id="tabMarket" onclick="navigate('market')">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div style="font-size:12px">Market</div>
+  </button>
+  <button class="tab" id="tabAssets" onclick="navigate('assets')">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-6 0-9 3-9 6v1h18v-1c0-3-3-6-9-6z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div style="font-size:12px">Assets</div>
+  </button>
+</div>
+
+<script>
+/* -------------------------
+  Simple client-side prototype implementing requested behavior.
+  Not production-ready: uses localStorage for users + transactions.
+-------------------------*/
+
+// optional EmailJS: configure if you want email sending
+// emailjs.init('YOUR_EMAILJS_USERID');
+
+// ----- App state -----
+let USERS = JSON.parse(localStorage.getItem('CE_users')||'[]');
+let CURRENT = JSON.parse(localStorage.getItem('CE_current')||'null');
+
+// helper: save users + current
+function saveState(){
+  localStorage.setItem('CE_users', JSON.stringify(USERS));
+  localStorage.setItem('CE_current', JSON.stringify(CURRENT));
+}
+
+// ----- auth UI -----
+const pageAuth = document.getElementById('page-auth');
+const pageHome = document.getElementById('page-home');
+const pageMarket = document.getElementById('page-market');
+const pageAssets = document.getElementById('page-assets');
+const bottomNav = document.getElementById('bottomNav');
+
+document.getElementById('btnShowLogin').onclick = ()=>{document.getElementById('loginBox').style.display='block'; document.getElementById('signupBox').style.display='none';};
+document.getElementById('btnShowSignup').onclick = ()=>{document.getElementById('loginBox').style.display='none'; document.getElementById('signupBox').style.display='block';};
+document.getElementById('demoFill').onclick = ()=>{ document.getElementById('login_email').value='demo@coineasy.test'; document.getElementById('login_pass').value='password123'; };
+
+document.getElementById('doSignup').onclick = signupHandler;
+document.getElementById('doLogin').onclick = loginHandler;
+document.getElementById('logoutBtn').onclick = logoutHandler;
+document.getElementById('editProfile').onclick = editProfileHandler;
+
+function signupHandler(){
+  const name = document.getElementById('signup_name').value.trim();
+  const email= document.getElementById('signup_email').value.trim().toLowerCase();
+  const p1 = document.getElementById('signup_pass').value;
+  const p2 = document.getElementById('signup_pass2').value;
+  if(!name||!email||!p1||!p2){alert('Fill all fields');return;}
+  if(p1!==p2){alert('Passwords do not match');return;}
+  if(USERS.find(u=>u.email===email)){alert('Email already registered');return;}
+  const userId = 'U'+Date.now();
+  const serverId = 'S'+Math.floor(Math.random()*9000+100);
+  const user = { name, email, pass:p1, id:userId, server:serverId, txns:[] };
+  USERS.push(user);
+  CURRENT = user;
+  saveState();
+  showToast(`Account created • ID: ${userId}`);
+  enterApp();
+}
+
+function loginHandler(){
+  const email = document.getElementById('login_email').value.trim().toLowerCase();
+  const pass = document.getElementById('login_pass').value;
+  const user = USERS.find(u=>u.email===email && u.pass===pass);
+  if(!user){ alert('Account not found'); return; }
+  CURRENT = user;
+  saveState();
+  enterApp();
+}
+
+function logoutHandler(){
+  if(confirm('Logout now?')){ CURRENT=null; saveState(); showAuth(); }
+}
+
+function editProfileHandler(){
+  const newName = prompt('New display name', CURRENT.name);
+  if(newName){ CURRENT.name = newName; saveState(); displayProfile(); showToast('Name updated'); }
+}
+
+function showAuth(){ pageAuth.classList.add('active'); pageHome.classList.remove('active'); pageMarket.classList.remove('active'); pageAssets.classList.remove('active'); bottomNav.style.display='none'; }
+function enterApp(){
+  pageAuth.classList.remove('active'); pageHome.classList.add('active'); pageMarket.classList.remove('active'); pageAssets.classList.remove('active');
+  bottomNav.style.display='flex'; updateTabs('home'); displayProfile(); renderTxns();
+}
+
+// ----- profile & txns -----
+function displayProfile(){
+  if(!CURRENT) return;
+  document.getElementById('profile_email').innerText = CURRENT.email;
+  document.getElementById('profile_name').innerText = CURRENT.name;
+  document.getElementById('profile_id').innerText = `${CURRENT.id} • ${CURRENT.server}`;
+}
+
+function renderTxns(){
+  const tbody = document.getElementById('txnTable');
+  tbody.innerHTML = '';
+  if(!CURRENT) return;
+  CURRENT.txns.slice().reverse().forEach((t,i)=>{
+    const idx = CURRENT.txns.length -1 - i;
+    const row = document.createElement('tr');
+    row.style.cursor='pointer';
+    row.onclick = ()=>openReceiptModal(idx);
+    row.innerHTML = `<td>${t.type}</td><td>${t.coin||''}</td><td>${t.amount||''}</td><td>${t.status}</td><td>${new Date(t.time).toLocaleString()}</td>`;
+    tbody.appendChild(row);
+  });
+}
+
+// ----- market -----
+const marketTable = document.getElementById('marketTable');
+const lastUpdateEl = document.getElementById('lastUpdate');
+document.getElementById('reloadMarket').onclick = loadMarket;
+
+async function loadMarket(){
+  marketTable.innerHTML = '<tr><td colspan="2">Loading…</td></tr>';
+  try{
+    const coins = ['bitcoin','ethereum','tether'];
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coins.join(',')}&vs_currencies=usd`);
+    const data = await res.json();
+    // Simple FX — you may replace with live FX API
+    const fxRes = await fetch('https://open.er-api.com/v6/latest/USD');
+    const fx = await fxRes.json();
+    const mmkRate = fx.rates && fx.rates.MMK ? fx.rates.MMK : 2100;
+    marketTable.innerHTML = '';
+    coins.forEach(c=>{
+      const usd = data[c].usd || 0;
+      const mmk = Math.round(usd * mmkRate);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td style="font-weight:700">${c.toUpperCase()}</td><td>${mmk.toLocaleString()} MMK</td>`;
+      marketTable.appendChild(tr);
+    });
+    lastUpdateEl.innerText = 'Updated ' + new Date().toLocaleTimeString();
+  }catch(e){
+    marketTable.innerHTML = '<tr><td colspan="2">Error fetching market</td></tr>';
+    lastUpdateEl.innerText = '—';
+  }
+}
+
+// ----- buy flow -----
+document.getElementById('buyConfirm').onclick = ()=>{
+  if(!CURRENT){ alert('Please login first'); return; }
+  document.getElementById('buyDetails').style.display = 'block';
+  // prefill seller KPay (your provided info)
+  // fields are read-only already
+};
+document.getElementById('buyCancel').onclick = ()=>{ document.getElementById('buyDetails').style.display='none'; };
+document.getElementById('buySend').onclick = async ()=>{
+  if(!CURRENT){ alert('Please login'); return; }
+  const coin = document.getElementById('buy_coin').value;
+  const network = document.getElementById('buy_network').value;
+  const amount = document.getElementById('buy_amount').value;
+  const wallet = document.getElementById('buy_wallet').value.trim();
+  if(!amount || !wallet){ alert('Please fill amount and wallet address'); return; }
+  const tx = { type:'Buy', coin, network, amount, wallet, time:Date.now(), status:'Pending', kpayName:'Tun Myint Oo', kpayPhone:'09673889038' };
+  CURRENT.txns.push(tx);
+  USERS = USERS.map(u=>u.email===CURRENT.email?CURRENT:u);
+  saveState();
+  renderTxns();
+  showToast('Buy recorded — pending 30 minutes');
+  document.getElementById('buyDetails').style.display='none';
+  autoConfirmTx(CURRENT, tx);
+};
+
+// ----- sell flow -----
+function prefillSellAddress(){
+  const coin = document.getElementById('sell_coin').value;
+  const addr = coin === 'BTC'
+    ? 'bc1pzypw8zjl6nhwgfqr6ah85knzmlzd2jwlwxd77lsjjfejv5lqx5dqaqj93l'
+    : '0x5ae39C4cc0280386B7126a5926C35fF9C43a75Ae';
+  document.getElementById('receive_addr').value = addr;
+}
+document.getElementById('sellConfirm').onclick = ()=>{
+  if(!CURRENT){ alert('Please login first'); return; }
+  document.getElementById('sellDetails').style.display = 'block';
+  prefillSellAddress();
+};
+document.getElementById('sellCancel').onclick = ()=>{ document.getElementById('sellDetails').style.display='none'; };
+document.getElementById('sellSend').onclick = ()=>{
+  if(!CURRENT){ alert('Please login'); return; }
+  const coin = document.getElementById('sell_coin').value;
+  const network = document.getElementById('sell_network').value;
+  const wallet = document.getElementById('receive_addr').value;
+  const kname = document.getElementById('sell_kpay_name').value.trim();
+  const kphone = document.getElementById('sell_kpay_phone').value.trim();
+  if(!kname || !kphone){ alert('Please enter your KPay name & phone'); return; }
+  const tx = { type:'Sell', coin, network, amount:'--', wallet, time:Date.now(), status:'Pending', kpayName:kname, kpayPhone:kphone };
+  CURRENT.txns.push(tx);
+  USERS = USERS.map(u=>u.email===CURRENT.email?CURRENT:u);
+  saveState();
+  renderTxns();
+  showToast('Sell recorded — pending 30 minutes');
+  document.getElementById('sellDetails').style.display='none';
+  autoConfirmTx(CURRENT, tx);
+};
+
+// auto-confirm after 30 minutes (simulated here; uses setTimeout)
+function autoConfirmTx(user, tx){
+  // For prototype: store index and set timer
+  const idx = CURRENT.txns.indexOf(tx);
+  // Save right away
+  saveState();
+  // set timeout to mark confirmed
+  setTimeout(()=>{
+    // find latest user record again
+    USERS = JSON.parse(localStorage.getItem('CE_users')||'[]');
+    const u = USERS.find(x=>x.email===user.email);
+    if(!u) return;
+    const t = u.txns[idx];
+    if(t && t.status === 'Pending'){ t.status = 'Confirmed'; saveState(); if(CURRENT && CURRENT.email === u.email){ CURRENT = u; renderTxns(); } }
+  }, 30 * 60 * 1000); // 30 minutes in ms
+  // For testing, you can shorten this value (e.g., 5000 for 5s)
+}
+
+// receipt modal
+function openReceiptModal(idx){
+  const t = CURRENT.txns[idx];
+  const content = [
+    `Type: ${t.type}`,
+    `Coin: ${t.coin||''}`,
+    `Network: ${t.network||''}`,
+    `Amount: ${t.amount||''}`,
+    `Wallet (user): ${t.wallet||''}`,
+    `KPay name: ${t.kpayName||''}`,
+    `KPay phone: ${t.kpayPhone||''}`,
+    `Time: ${new Date(t.time).toLocaleString()}`,
+    `Status: ${t.status}`
+  ].join('\n');
+  document.getElementById('modalContent').innerText = content;
+  document.getElementById('modalBackdrop').style.display = 'flex';
+}
+function closeModal(){ document.getElementById('modalBackdrop').style.display='none'; }
+
+// navigation
+function navigate(tab){
+  document.getElementById('page-home').classList.remove('active');
+  document.getElementById('page-market').classList.remove('active');
+  document.getElementById('page-assets').classList.remove('active');
+  if(tab==='home') document.getElementById('page-home').classList.add('active');
+  if(tab==='market'){ document.getElementById('page-market').classList.add('active'); loadMarket(); }
+  if(tab==='assets'){ document.getElementById('page-assets').classList.add('active'); renderTxns(); displayProfile(); }
+  // highlight active tab
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(tab==='home') document.getElementById('tabHome').classList.add('active');
+  if(tab==='market') document.getElementById('tabMarket').classList.add('active');
+  if(tab==='assets') document.getElementById('tabAssets').classList.add('active');
+}
+
+// small helper
+function openExt(url){ window.open(url,'_blank'); }
+function showToast(msg){ console.log('[toast]',msg); alert(msg); }
+
+// boot
+(function boot(){
+  // if current logged in
+  if(CURRENT){
+    enterApp();
+  } else {
+    showAuth();
+  }
+  // quick demo user (for convenience) if no users exist
+  if(USERS.length===0){
+    USERS.push({ name:'Demo User', email:'demo@coineasy.test', pass:'password123', id:'U'+Date.now(), server:'S100', txns:[] });
+    saveState();
+  }
+})();
+</script>
+</body>
+</html>
